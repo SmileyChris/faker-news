@@ -1,0 +1,28 @@
+name: Docs
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v3
+        with:
+          cache-dependency-path: uv.lock
+      - name: Sync documentation dependencies
+        run: uv sync --frozen --group docs
+      - name: Build documentation
+        run: uv run mkdocs build --strict
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-site
+          path: site

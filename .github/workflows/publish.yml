@@ -1,0 +1,70 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (matches pyproject version)"
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v3
+        with:
+          cache-dependency-path: uv.lock
+      - name: Sync dependencies
+        run: uv sync --frozen --group dev
+      - name: Run tests
+        run: uv run pytest -m "not integration and not slow"
+      - name: Verify version input
+        id: version
+        run: |
+          PYPROJECT_VERSION=$(python - <<'PY'
+import tomllib
+from pathlib import Path
+print(tomllib.loads(Path('pyproject.toml').read_text())['project']['version'])
+PY
+          )
+          INPUT="${{ inputs.version }}"
+          STRIPPED="${INPUT#v}"
+          if [ "$PYPROJECT_VERSION" != "$INPUT" ] && [ "$PYPROJECT_VERSION" != "$STRIPPED" ]; then
+            echo "::error ::Input version $INPUT does not match pyproject version $PYPROJECT_VERSION"
+            exit 1
+          fi
+          echo "version=$PYPROJECT_VERSION" >> "$GITHUB_OUTPUT"
+      - name: Ensure tag does not already exist
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          if git ls-remote --tags origin "v$VERSION" | grep refs/tags; then
+            echo "::error ::Tag v$VERSION already exists"
+            exit 1
+          fi
+      - name: Create tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+      - name: Build distributions
+        run: uv build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          gh release create "v$VERSION" dist/* --generate-notes
