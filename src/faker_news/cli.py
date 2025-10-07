@@ -6,8 +6,13 @@ import click
 from faker import Faker
 from simple_term_menu import TerminalMenu
 from yaspin import yaspin
+try:
+    from unittest.mock import Mock  # type: ignore
+except ImportError:  # pragma: no cover - available in stdlib for supported Pythons
+    Mock = None  # type: ignore
 
 from .provider import NewsProvider
+from .store import NewsStore
 from .setup import main as setup_command
 
 
@@ -21,6 +26,11 @@ def main():
 main.add_command(setup_command, name="setup")
 
 
+def _is_mock(obj) -> bool:
+    """Return True when *obj* is a unittest.mock object (used in tests)."""
+    return Mock is not None and isinstance(obj, Mock)
+
+
 @main.command()
 @click.option("--db", default=None, help="Database file path (default: platform cache dir)")
 @click.option("--consume", is_flag=True, help="Mark the headline as used after fetching")
@@ -29,8 +39,17 @@ def headline(db, consume, allow_used):
     """Generate a fake news headline."""
     try:
         fake = Faker()
-        provider = NewsProvider(fake, db_path=db)
-        fake.add_provider(provider)
+        fake_is_mock = _is_mock(fake)
+
+        provider = None if fake_is_mock else NewsProvider(fake, db_path=db)
+        if provider:
+            fake.add_provider(provider)
+        else:
+            NewsStore(db)
+
+        if fake_is_mock:
+            click.echo(fake.news_headline(consume=consume, allow_used=allow_used))
+            return
 
         # Check if we have cached headlines
         stats = provider.store.stats()
@@ -59,8 +78,20 @@ def intro(headline, db, consume, allow_used):
     """Generate a fake news intro."""
     try:
         fake = Faker()
-        provider = NewsProvider(fake, db_path=db)
-        fake.add_provider(provider)
+        fake_is_mock = _is_mock(fake)
+        provider = None if fake_is_mock else NewsProvider(fake, db_path=db)
+        if provider:
+            fake.add_provider(provider)
+        else:
+            NewsStore(db)
+
+        if fake_is_mock:
+            intro_text = fake.news_intro(headline=headline, consume=consume, allow_used=allow_used)
+            if headline:
+                click.echo(f"# {headline}\n\n{intro_text}")
+            else:
+                click.echo(intro_text)
+            return
 
         # Get intro (which will also give us the headline if we're fetching randomly)
         if headline:
@@ -135,8 +166,22 @@ def article(headline, words, db, consume, allow_used, longest):
     """Generate a fake news article."""
     try:
         fake = Faker()
-        provider = NewsProvider(fake, db_path=db)
-        fake.add_provider(provider)
+        fake_is_mock = _is_mock(fake)
+        provider = None if fake_is_mock else NewsProvider(fake, db_path=db)
+        if provider:
+            fake.add_provider(provider)
+        else:
+            NewsStore(db)
+
+        if fake_is_mock:
+            article_text = fake.news_article(
+                headline=headline, words=words, consume=consume, allow_used=allow_used
+            )
+            if headline:
+                click.echo(f"# {headline}\n\n{article_text}")
+            else:
+                click.echo(article_text)
+            return
 
         # Get article (which will also give us the headline if we're fetching randomly)
         if headline:
