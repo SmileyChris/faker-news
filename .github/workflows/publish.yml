@@ -36,6 +36,10 @@ jobs:
             echo "::error ::Tag v$VERSION already exists"
             exit 1
           fi
+      - name: Build distributions
+        run: uv build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
       - name: Create tag
         run: |
           VERSION=${{ steps.version.outputs.version }}
@@ -43,10 +47,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag "v$VERSION"
           git push origin "v$VERSION"
-      - name: Build distributions
-        run: uv build
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
