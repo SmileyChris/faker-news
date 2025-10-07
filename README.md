@@ -10,12 +10,21 @@ Faker provider that turns any OpenAI-compatible LLM into a fake news generator w
 
 ## Installation
 ```bash
-pip install -e .
-# Development extras
-pip install -e ".[dev]"
+pip install faker-news
 ```
 
 ## Quick Start
+
+Try it without installation using uvx:
+```bash
+# Set up your API key
+uvx faker-news setup
+
+# Browse generated articles
+uvx faker-news browse
+```
+
+Use as a library:
 ```python
 from faker import Faker
 from faker_news import NewsProvider
@@ -27,14 +36,6 @@ fake.add_provider(provider)
 headline = fake.news_headline()
 intro = fake.news_intro(headline=headline)
 article = fake.news_article(headline=headline, words=500)
-```
-
-## CLI
-```bash
-uv run faker-news headline
-uv run faker-news article --words 800
-uv run faker-news preload --n 50 --with-intros --with-articles
-uv run faker-news stats
 ```
 
 ## Documentation
