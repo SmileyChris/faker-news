@@ -53,7 +53,8 @@ class NewsProvider(BaseProvider):
     ):
         super().__init__(generator)
         self.store = NewsStore(db_path)
-        self.client = LLMClient(llm_config)
+        self._llm_config = llm_config
+        self._client: LLMClient | None = None
         self.min_headline_pool = min_headline_pool
         self.headline_batch = headline_batch
         self.intro_batch = intro_batch
@@ -175,3 +176,10 @@ class NewsProvider(BaseProvider):
         arts = self.client.generate_articles(pairs, words=words)
         self.store.set_articles(arts)
         return arts
+
+    @property
+    def client(self) -> LLMClient:
+        """Instantiate the LLM client lazily so CLI usage without API keys still works."""
+        if self._client is None:
+            self._client = LLMClient(self._llm_config)
+        return self._client
