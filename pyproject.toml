@@ -53,6 +53,9 @@ Issues = "https://github.com/smileychris/faker-news/issues"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+faker_news = ["fixtures/*.json"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py39"

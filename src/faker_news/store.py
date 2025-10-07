@@ -1,6 +1,7 @@
 """SQLite storage for cached news content."""
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
@@ -302,3 +303,38 @@ class NewsStore:
                 row[0]: {"intro": row[1], "article": row[2]}
                 for row in rows
             }
+
+    def load_example_data(self) -> int:
+        """Load example news data from bundled fixtures.
+
+        Returns the number of items loaded.
+        """
+        fixtures_path = Path(__file__).parent / "fixtures" / "example_news.json"
+        if not fixtures_path.exists():
+            raise FileNotFoundError(f"Example data not found at {fixtures_path}")
+
+        with open(fixtures_path) as f:
+            items = json.load(f)
+
+        with self._conn() as cx:
+            loaded = 0
+            for item in items:
+                try:
+                    headline = item["headline"]
+                    intro = item["intro"]
+                    article = item["article"]
+                    word_count = len(article.split()) if article else 0
+
+                    cx.execute(
+                        """
+                        INSERT OR IGNORE INTO items(headline, intro, article, word_count)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (headline, intro, article, word_count)
+                    )
+                    if cx.total_changes > 0:
+                        loaded += 1
+                except (KeyError, sqlite3.IntegrityError):
+                    continue
+
+        return loaded

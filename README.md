@@ -17,7 +17,7 @@ pip install faker-news
 
 Try it without installation using uvx:
 ```bash
-# Set up your API key
+# Set up your API key / load example data
 uvx faker-news setup
 
 # Browse generated articles
