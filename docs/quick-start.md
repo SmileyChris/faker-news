@@ -49,6 +49,10 @@ faker-news article --words 800
 # Generate content for a specific headline
 faker-news intro --headline "Breaking: New Discovery Announced"
 faker-news article --headline "Breaking: New Discovery Announced"
+
+# Always generate fresh content (skip cache)
+faker-news headline --new
+faker-news article --new --words 500
 ```
 
 ## Understanding Consumption

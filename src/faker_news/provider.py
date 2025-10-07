@@ -94,9 +94,14 @@ class NewsProvider(BaseProvider):
         intro = self.store.fetch_intro(consume=consume, allow_used=allow_used)
         if intro:
             return intro[1]
+        # Try to generate intros for existing headlines without intros
         intros = self._ensure_intro_for([])  # batch-generate for random set
         if not intros:
-            raise RuntimeError("No intros available after generation")
+            # No headlines available - generate new headlines first
+            self._top_up_headlines(self.intro_batch)
+            intros = self._ensure_intro_for([])
+            if not intros:
+                raise RuntimeError("Failed to generate intros")
         # Return first generated intro
         headline, intro_text = intros[0]
         if consume:
@@ -107,8 +112,14 @@ class NewsProvider(BaseProvider):
         self, headline: Optional[str] = None, words: int = 500, consume: bool = True, allow_used: bool = False
     ) -> str:
         if headline:
+            # ensure intro exists first, then generate article
+            intro = self._get_intro_for(headline)
+            if not intro:
+                # Generate intro if missing
+                self._ensure_intro_for([headline])
+                intro = self._get_intro_for(headline)
             # ensure article for selected headline
-            arts = self._ensure_article_for([(headline, self._get_intro_for(headline))], words=words)
+            arts = self._ensure_article_for([(headline, intro)], words=words)
             if not arts:
                 raise RuntimeError("Article generation failed for the requested headline")
             # Return the generated article
@@ -122,10 +133,17 @@ class NewsProvider(BaseProvider):
         # generate batch
         need_pairs = self.store.fetch_headlines_needing_articles(self.article_batch)
         if not need_pairs:
-            # If everything already has articles but they're used up, caller can reuse via news_reset('reuse')
-            raise RuntimeError(
-                "No headlines available to generate articles for; preload more headlines or reset usage."
-            )
+            # No headlines available - generate new ones
+            self._top_up_headlines(self.article_batch)
+            need_pairs = self.store.fetch_headlines_needing_articles(self.article_batch)
+            if not need_pairs:
+                raise RuntimeError("Failed to generate headlines for articles")
+        # Ensure all headlines have intros before generating articles
+        headlines_without_intro = [h for h, intro in need_pairs if not intro]
+        if headlines_without_intro:
+            self._ensure_intro_for(headlines_without_intro)
+            # Re-fetch pairs to get the newly generated intros
+            need_pairs = [(h, self._get_intro_for(h)) for h, _ in need_pairs]
         arts = self._ensure_article_for(need_pairs, words=words)
         if not arts:
             raise RuntimeError("No articles were generated")

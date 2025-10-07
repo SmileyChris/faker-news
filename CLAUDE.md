@@ -133,6 +133,11 @@ uv run faker-news headline
 uv run faker-news intro --headline "Some Headline"
 uv run faker-news article --headline "Some Headline" --words 800
 
+# Always generate fresh content (skip cache)
+uv run faker-news headline --new
+uv run faker-news intro --new
+uv run faker-news article --new --words 800
+
 # Mark items as used with --consume flag
 uv run faker-news headline --consume
 uv run faker-news article --consume
@@ -161,6 +166,8 @@ uv run faker-news headline --db /path/to/custom.sqlite3
 ```
 
 **Important:** CLI commands do NOT mark items as used by default. Use `--consume` flag if you want to mark items as used.
+
+**--new flag:** Use `--new` to always generate fresh content, bypassing the cache. Useful for generating multiple variations or testing different outputs.
 
 **Preload modes:**
 - `preload --n 50` - Generate 50 new headlines only

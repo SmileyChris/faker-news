@@ -178,3 +178,24 @@ def test_command_error_handling(runner, temp_db):
         result = runner.invoke(main, ["headline", "--db", temp_db])
         assert result.exit_code == 1
         assert "Error" in result.output
+
+
+def test_headline_with_new_flag(runner, mock_provider):
+    """Test headline command with --new flag."""
+    result = runner.invoke(main, ["headline", "--new"])
+    assert result.exit_code == 0
+    assert "Test Headline" in result.output
+
+
+def test_intro_with_new_flag(runner, mock_provider):
+    """Test intro command with --new flag."""
+    result = runner.invoke(main, ["intro", "--new"])
+    assert result.exit_code == 0
+    assert "Test Intro" in result.output
+
+
+def test_article_with_new_flag(runner, mock_provider):
+    """Test article command with --new flag."""
+    result = runner.invoke(main, ["article", "--new"])
+    assert result.exit_code == 0
+    assert "Test Article" in result.output

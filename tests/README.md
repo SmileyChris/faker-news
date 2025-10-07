@@ -2,7 +2,7 @@
 
 ## Test Coverage
 
-### ✅ All Tests Passing (62 tests)
+### ✅ All Tests Passing (68 tests)
 
 #### `test_store.py` (16 tests)
 Tests for the SQLite storage layer:
@@ -27,20 +27,24 @@ Tests for the LLM client:
 - Headline/intro/article generation
 - DashScope vs OpenAI model auto-selection
 
-#### `test_cli.py` (17 tests)
+#### `test_cli.py` (20 tests)
 Tests for CLI commands:
 - Help command
 - Content generation commands (headline, intro, article)
-- Command-line options (--consume, --allow-used, --words, --db)
+- Command-line options (--consume, --allow-used, --words, --db, --new)
+- `--new` flag for always generating fresh content (skipping cache)
 - Preload with --populate flag
 - Reset and stats commands
 - Setup command with keyring integration and example data loading
 - Error handling
 
-#### `test_provider.py` (16 tests)
+#### `test_provider.py` (19 tests)
 Tests for NewsProvider integration:
 - Provider initialization and method registration
 - Headline/intro/article generation on demand
+- Automatic content pipeline (headlines → intros → articles)
+- Auto-generating missing intros when requesting articles
+- Auto-generating headlines when cache is empty
 - Consume and allow_used behavior (including edge cases with auto-refill)
 - Preload functionality
 - Reset modes

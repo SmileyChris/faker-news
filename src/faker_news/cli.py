@@ -35,7 +35,8 @@ def _is_mock(obj) -> bool:
 @click.option("--db", default=None, help="Database file path (default: platform cache dir)")
 @click.option("--consume", is_flag=True, help="Mark the headline as used after fetching")
 @click.option("--allow-used", is_flag=True, help="Allow fetching from used headlines (default: unused only)")
-def headline(db, consume, allow_used):
+@click.option("--new", is_flag=True, help="Always generate a new headline (skip cache)")
+def headline(db, consume, allow_used, new):
     """Generate a fake news headline."""
     try:
         fake = Faker()
@@ -51,9 +52,9 @@ def headline(db, consume, allow_used):
             click.echo(fake.news_headline(consume=consume, allow_used=allow_used))
             return
 
-        # Check if we have cached headlines
+        # Check if we have cached headlines (unless --new is specified)
         stats = provider.store.stats()
-        needs_generation = stats["unused_headlines"] == 0 if not allow_used else stats["total"] == 0
+        needs_generation = new or (stats["unused_headlines"] == 0 if not allow_used else stats["total"] == 0)
 
         if needs_generation:
             with yaspin(text="Generating headlines", color="cyan", attrs=["dark"]) as spinner:
@@ -74,7 +75,8 @@ def headline(db, consume, allow_used):
 @click.option("--db", default=None, help="Database file path (default: platform cache dir)")
 @click.option("--consume", is_flag=True, help="Mark the intro as used after fetching")
 @click.option("--allow-used", is_flag=True, help="Allow fetching from used intros (default: unused only)")
-def intro(headline, db, consume, allow_used):
+@click.option("--new", is_flag=True, help="Always generate a new intro (skip cache)")
+def intro(headline, db, consume, allow_used, new):
     """Generate a fake news intro."""
     try:
         fake = Faker()
@@ -96,7 +98,7 @@ def intro(headline, db, consume, allow_used):
         # Get intro (which will also give us the headline if we're fetching randomly)
         if headline:
             # Check if intro already exists for this headline
-            existing_intro = provider._get_intro_for(headline)
+            existing_intro = provider._get_intro_for(headline) if not new else None
             if existing_intro:
                 intro_text = existing_intro
                 headline_text = headline
@@ -107,9 +109,9 @@ def intro(headline, db, consume, allow_used):
                 click.echo("")
                 headline_text = headline
         else:
-            # Check if we have cached intros
+            # Check if we have cached intros (unless --new is specified)
             stats = provider.store.stats()
-            needs_generation = stats["unused_intros"] == 0 if not allow_used else stats["with_intro"] == 0
+            needs_generation = new or (stats["unused_intros"] == 0 if not allow_used else stats["with_intro"] == 0)
 
             if needs_generation:
                 with yaspin(text="Generating intro", color="cyan", attrs=["dark"]) as spinner:
@@ -162,7 +164,8 @@ def intro(headline, db, consume, allow_used):
 @click.option("--consume", is_flag=True, help="Mark the article as used after fetching")
 @click.option("--allow-used", is_flag=True, help="Allow fetching from used articles (default: unused only)")
 @click.option("--longest", is_flag=True, help="Fetch the longest available article instead of random")
-def article(headline, words, db, consume, allow_used, longest):
+@click.option("--new", is_flag=True, help="Always generate a new article (skip cache)")
+def article(headline, words, db, consume, allow_used, longest, new):
     """Generate a fake news article."""
     try:
         fake = Faker()
@@ -191,7 +194,7 @@ def article(headline, words, db, consume, allow_used, longest):
                 r = cx.execute("SELECT article FROM items WHERE headline = ?", (headline,)).fetchone()
                 existing_article = r[0] if r and r[0] else None
 
-            if existing_article:
+            if existing_article and not new:
                 article_text = existing_article
                 headline_text = headline
             else:
@@ -201,12 +204,14 @@ def article(headline, words, db, consume, allow_used, longest):
                 click.echo("")
                 headline_text = headline
         else:
-            # Check if we have cached articles with sufficient word count
-            result = provider.store.fetch_article(
-                consume=False, allow_used=allow_used, min_words=words, longest=longest
-            )
+            # Check if we have cached articles with sufficient word count (unless --new is specified)
+            result = None
+            if not new:
+                result = provider.store.fetch_article(
+                    consume=False, allow_used=allow_used, min_words=words, longest=longest
+                )
 
-            if result:
+            if result and not new:
                 # We have a cached article, fetch it again with consume flag
                 result = provider.store.fetch_article(
                     consume=consume, allow_used=allow_used, min_words=words, longest=longest

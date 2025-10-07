@@ -58,6 +58,7 @@ faker-news headline [OPTIONS]
 |--------|-------------|---------|
 | `--consume` | Mark the headline as used | `False` |
 | `--allow-used` | Fetch from all items (used or unused) | `False` |
+| `--new` | Always generate a new headline (skip cache) | `False` |
 | `--db PATH` | Custom database path | Platform default |
 
 **Examples:**
@@ -68,6 +69,13 @@ faker-news headline
 
 # Generate and mark as used
 faker-news headline --consume
+
+# Always generate a fresh headline
+faker-news headline --new
+
+# Generate multiple variations
+faker-news headline --new  # First variation
+faker-news headline --new  # Different variation
 
 # Fetch from all items (including used ones)
 faker-news headline --allow-used
@@ -93,6 +101,7 @@ faker-news intro [OPTIONS]
 | `--headline TEXT` | Specific headline to use | Auto-generated |
 | `--consume` | Mark the intro as used | `False` |
 | `--allow-used` | Fetch from all items | `False` |
+| `--new` | Always generate a new intro (skip cache) | `False` |
 | `--db PATH` | Custom database path | Platform default |
 
 **Examples:**
@@ -103,6 +112,12 @@ faker-news intro
 
 # Generate intro for specific headline
 faker-news intro --headline "Scientists Make Breakthrough Discovery"
+
+# Always generate a fresh intro
+faker-news intro --new
+
+# Generate new intro for existing headline
+faker-news intro --headline "Breaking News" --new
 
 # Generate and consume
 faker-news intro --consume
@@ -129,6 +144,8 @@ faker-news article [OPTIONS]
 | `--words INT` | Target article length in words | `500` |
 | `--consume` | Mark the article as used | `False` |
 | `--allow-used` | Fetch from all items | `False` |
+| `--longest` | Fetch the longest available article | `False` |
+| `--new` | Always generate a new article (skip cache) | `False` |
 | `--db PATH` | Custom database path | Platform default |
 
 **Examples:**
@@ -140,14 +157,27 @@ faker-news article
 # Generate a longer article
 faker-news article --words 1000
 
+# Always generate a fresh article
+faker-news article --new
+
+# Generate multiple variations
+faker-news article --new --words 800  # First variation
+faker-news article --new --words 800  # Different variation
+
 # Generate for specific headline
 faker-news article --headline "Tech Giant Announces New Product"
+
+# Generate new article for existing headline
+faker-news article --headline "Tech Giant Announces New Product" --new
 
 # Generate, consume, and use custom length
 faker-news article --words 800 --consume
 
 # Fetch from any item (including used)
 faker-news article --allow-used
+
+# Get the longest available article
+faker-news article --longest
 ```
 
 ---
@@ -344,6 +374,28 @@ faker-news article
 # Same command can be run multiple times
 faker-news headline  # Might show same headline
 faker-news headline  # Might show same headline
+```
+
+### Generating Multiple Variations
+
+Use the `--new` flag to generate fresh content every time, bypassing the cache:
+
+```bash
+# Generate 5 different headlines
+for i in {1..5}; do
+  faker-news headline --new
+done
+
+# Generate 3 different article variations for testing
+faker-news article --new --words 500 > article1.txt
+faker-news article --new --words 500 > article2.txt
+faker-news article --new --words 500 > article3.txt
+
+# Create multiple intros for the same headline
+headline="Breaking: Scientists Discover New Planet"
+faker-news intro --headline "$headline" --new > intro1.txt
+faker-news intro --headline "$headline" --new > intro2.txt
+faker-news intro --headline "$headline" --new > intro3.txt
 ```
 
 ### Batch Generation Script

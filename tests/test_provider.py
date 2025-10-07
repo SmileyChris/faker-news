@@ -265,3 +265,85 @@ def test_multiple_providers_use_same_db(temp_db, mock_llm_client):
     # Should be visible in fake2
     stats2 = fake2.news_stats()
     assert stats2["total"] >= 5
+
+
+def test_news_article_auto_generates_intro(temp_db, mock_llm_client):
+    """Test that news_article automatically generates intro if missing."""
+    # Use provider with controlled settings
+    fake = Faker()
+    provider = NewsProvider(fake, db_path=temp_db, min_headline_pool=0, headline_batch=5)
+    fake.add_provider(provider)
+
+    # Preload a headline without intro
+    fake.news_preload_headlines(1)
+    headline = fake.news_headline(consume=False)
+
+    # Verify no intro exists yet
+    stats = fake.news_stats()
+    assert stats["with_intro"] == 0
+
+    # Reset mock to track new calls
+    mock_llm_client.generate_intros.reset_mock()
+    mock_llm_client.generate_articles.reset_mock()
+
+    # Generate article for this headline (should auto-generate intro first)
+    article = fake.news_article(headline=headline, consume=False)
+
+    # Verify both intro and article were generated
+    assert article.startswith("Article")
+    mock_llm_client.generate_intros.assert_called()
+    mock_llm_client.generate_articles.assert_called()
+
+    # Verify intro is now in database
+    stats_after = fake.news_stats()
+    assert stats_after["with_intro"] >= 1
+
+
+def test_news_intro_generates_headlines_when_empty(temp_db, mock_llm_client):
+    """Test that news_intro generates headlines if none exist."""
+    # Use provider with no auto-refill
+    fake = Faker()
+    provider = NewsProvider(fake, db_path=temp_db, min_headline_pool=0, intro_batch=5)
+    fake.add_provider(provider)
+
+    # No headlines in database
+    assert fake.news_stats()["total"] == 0
+
+    # Should auto-generate headlines and intro
+    intro = fake.news_intro(consume=False)
+
+    # Verify headline and intro were generated
+    assert intro.startswith("Intro")
+    mock_llm_client.generate_headlines.assert_called()
+    mock_llm_client.generate_intros.assert_called()
+
+    # Verify content in database
+    stats = fake.news_stats()
+    assert stats["total"] >= 1
+    assert stats["with_intro"] >= 1
+
+
+def test_news_article_generates_headlines_when_empty(temp_db, mock_llm_client):
+    """Test that news_article generates headlines if none exist."""
+    # Use provider with no auto-refill
+    fake = Faker()
+    provider = NewsProvider(fake, db_path=temp_db, min_headline_pool=0, article_batch=5)
+    fake.add_provider(provider)
+
+    # No headlines in database
+    assert fake.news_stats()["total"] == 0
+
+    # Should auto-generate headlines, intro, and article
+    article = fake.news_article(consume=False)
+
+    # Verify everything was generated
+    assert article.startswith("Article")
+    mock_llm_client.generate_headlines.assert_called()
+    mock_llm_client.generate_intros.assert_called()
+    mock_llm_client.generate_articles.assert_called()
+
+    # Verify content in database
+    stats = fake.news_stats()
+    assert stats["total"] >= 1
+    assert stats["with_intro"] >= 1
+    assert stats["with_article"] >= 1
