@@ -149,9 +149,10 @@ def test_setup_command_interactive(runner):
         mock_os.getenv.return_value = None
         mock_keyring.get_password.return_value = None
 
-        # Simulate user choosing not to set key
-        result = runner.invoke(main, ["setup"], input="n\n")
+        # Simulate user choosing to load example data (option 2), then declining test
+        result = runner.invoke(main, ["setup"], input="2\nn\n")
         assert result.exit_code == 0
+        assert "example" in result.output.lower()
 
 
 def test_custom_db_path(runner, temp_db, mock_provider):

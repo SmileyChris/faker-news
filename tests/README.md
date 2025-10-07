@@ -15,6 +15,7 @@ Tests for the SQLite storage layer:
 - Usage tracking and statistics
 - Batch metadata fetching
 - Platform-specific cache directory
+- Example data loading from fixtures
 
 #### `test_client.py` (13 tests)
 Tests for the LLM client:
@@ -33,7 +34,7 @@ Tests for CLI commands:
 - Command-line options (--consume, --allow-used, --words, --db)
 - Preload with --populate flag
 - Reset and stats commands
-- Setup command with keyring integration
+- Setup command with keyring integration and example data loading
 - Error handling
 
 #### `test_provider.py` (16 tests)
