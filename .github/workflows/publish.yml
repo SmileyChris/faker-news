@@ -31,12 +31,7 @@ jobs:
       - name: Verify version input
         id: version
         run: |
-          PYPROJECT_VERSION=$(python - <<'PY'
-import tomllib
-from pathlib import Path
-print(tomllib.loads(Path('pyproject.toml').read_text())['project']['version'])
-PY
-          )
+          PYPROJECT_VERSION=$(python -c "import tomllib; from pathlib import Path; print(tomllib.loads(Path('pyproject.toml').read_text())['project']['version'])")
           INPUT="${{ inputs.version }}"
           STRIPPED="${INPUT#v}"
           if [ "$PYPROJECT_VERSION" != "$INPUT" ] && [ "$PYPROJECT_VERSION" != "$STRIPPED" ]; then
