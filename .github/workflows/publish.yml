@@ -2,10 +2,6 @@ name: Publish
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (matches pyproject version)"
-        required: true
 
 permissions:
   contents: write
@@ -28,16 +24,10 @@ jobs:
         run: uv sync --frozen --group dev
       - name: Run tests
         run: uv run pytest -m "not integration and not slow"
-      - name: Verify version input
+      - name: Read version from pyproject.toml
         id: version
         run: |
           PYPROJECT_VERSION=$(python -c "import tomllib; from pathlib import Path; print(tomllib.loads(Path('pyproject.toml').read_text())['project']['version'])")
-          INPUT="${{ inputs.version }}"
-          STRIPPED="${INPUT#v}"
-          if [ "$PYPROJECT_VERSION" != "$INPUT" ] && [ "$PYPROJECT_VERSION" != "$STRIPPED" ]; then
-            echo "::error ::Input version $INPUT does not match pyproject version $PYPROJECT_VERSION"
-            exit 1
-          fi
           echo "version=$PYPROJECT_VERSION" >> "$GITHUB_OUTPUT"
       - name: Ensure tag does not already exist
         run: |
