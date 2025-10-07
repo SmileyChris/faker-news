@@ -109,46 +109,63 @@ def intro(headline, db, consume, allow_used, new):
                 click.echo("")
                 headline_text = headline
         else:
-            # Check if we have cached intros (unless --new is specified)
-            stats = provider.store.stats()
-            needs_generation = new or (stats["unused_intros"] == 0 if not allow_used else stats["with_intro"] == 0)
-
-            if needs_generation:
+            # If --new is specified, generate fresh headline+intro
+            if new:
                 with yaspin(text="Generating intro", color="cyan", attrs=["dark"]) as spinner:
-                    result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
-                    if not result:
-                        # Try to generate some intros
-                        # First check if we have any headlines at all
-                        if stats["total"] == 0:
-                            # No headlines exist, generate some first
-                            headlines = provider.client.generate_headlines(provider.headline_batch)
-                            provider.store.insert_headlines(headlines)
+                    # Generate new headline first
+                    headline_text = provider.client.generate_headlines(1)[0]
+                    provider.store.insert_headlines([headline_text])
 
-                        provider._ensure_intro_for([])
-                        result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
-                        if not result:
-                            raise RuntimeError("No intros available after generation")
-                    headline_text, intro_text = result
+                    # Generate intro for it
+                    intro_text = provider.client.generate_intros([headline_text])[0][1]
+                    provider.store.set_intros([(headline_text, intro_text)])
+
+                    if consume:
+                        provider.store.mark_intro_used_for(headline_text)
+
                     spinner.ok("✓")
                 click.echo("")
             else:
-                result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
-                if not result:
-                    # Shouldn't happen but handle it
-                    with yaspin(text="Generating intro", color="cyan", attrs=["dark"]) as spinner:
-                        # First check if we have any headlines at all
-                        if stats["total"] == 0:
-                            # No headlines exist, generate some first
-                            headlines = provider.client.generate_headlines(provider.headline_batch)
-                            provider.store.insert_headlines(headlines)
+                # Check if we have cached intros
+                stats = provider.store.stats()
+                needs_generation = stats["unused_intros"] == 0 if not allow_used else stats["with_intro"] == 0
 
-                        provider._ensure_intro_for([])
+                if needs_generation:
+                    with yaspin(text="Generating intro", color="cyan", attrs=["dark"]) as spinner:
                         result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
                         if not result:
-                            raise RuntimeError("No intros available after generation")
+                            # Try to generate some intros
+                            # First check if we have any headlines at all
+                            if stats["total"] == 0:
+                                # No headlines exist, generate some first
+                                headlines = provider.client.generate_headlines(provider.headline_batch)
+                                provider.store.insert_headlines(headlines)
+
+                            provider._ensure_intro_for([])
+                            result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
+                            if not result:
+                                raise RuntimeError("No intros available after generation")
+                        headline_text, intro_text = result
                         spinner.ok("✓")
                     click.echo("")
-                headline_text, intro_text = result
+                else:
+                    result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
+                    if not result:
+                        # Shouldn't happen but handle it
+                        with yaspin(text="Generating intro", color="cyan", attrs=["dark"]) as spinner:
+                            # First check if we have any headlines at all
+                            if stats["total"] == 0:
+                                # No headlines exist, generate some first
+                                headlines = provider.client.generate_headlines(provider.headline_batch)
+                                provider.store.insert_headlines(headlines)
+
+                            provider._ensure_intro_for([])
+                            result = provider.store.fetch_intro(consume=consume, allow_used=allow_used)
+                            if not result:
+                                raise RuntimeError("No intros available after generation")
+                            spinner.ok("✓")
+                        click.echo("")
+                    headline_text, intro_text = result
 
         # Output headline and intro
         click.echo(f"# {headline_text}\n\n{intro_text}")
@@ -204,55 +221,74 @@ def article(headline, words, db, consume, allow_used, longest, new):
                 click.echo("")
                 headline_text = headline
         else:
-            # Check if we have cached articles with sufficient word count (unless --new is specified)
-            result = None
-            if not new:
+            # If --new is specified, generate fresh headline+article
+            if new:
+                with yaspin(text="Generating article", color="cyan", attrs=["dark"]) as spinner:
+                    # Generate new headline first
+                    headline_text = provider.client.generate_headlines(1)[0]
+                    provider.store.insert_headlines([headline_text])
+
+                    # Generate intro for it
+                    intro = provider.client.generate_intros([headline_text])[0][1]
+                    provider.store.set_intros([(headline_text, intro)])
+
+                    # Generate article
+                    article_text = provider.client.generate_articles([(headline_text, intro)], words=words)[0][1]
+                    provider.store.set_articles([(headline_text, article_text)])
+
+                    if consume:
+                        provider.store.mark_article_used_for(headline_text)
+
+                    spinner.ok("✓")
+                click.echo("")
+            else:
+                # Check if we have cached articles with sufficient word count
                 result = provider.store.fetch_article(
                     consume=False, allow_used=allow_used, min_words=words, longest=longest
                 )
 
-            if result and not new:
-                # We have a cached article, fetch it again with consume flag
-                result = provider.store.fetch_article(
-                    consume=consume, allow_used=allow_used, min_words=words, longest=longest
-                )
-                headline_text, article_text = result
-            else:
-                # Need to generate
-                with yaspin(text="Generating article", color="cyan", attrs=["dark"]) as spinner:
-                    # Try to generate some articles
-                    need_pairs = provider.store.fetch_headlines_needing_articles(provider.article_batch)
-                    if not need_pairs:
-                        # Check if we have any headlines at all
-                        stats = provider.store.stats()
-                        if stats["total"] == 0:
-                            # No headlines exist, generate some first
-                            headlines = provider.client.generate_headlines(provider.headline_batch)
-                            provider.store.insert_headlines(headlines)
-                            # Try again
-                            need_pairs = provider.store.fetch_headlines_needing_articles(provider.article_batch)
-
+                if result:
+                    # We have a cached article, fetch it again with consume flag
+                    result = provider.store.fetch_article(
+                        consume=consume, allow_used=allow_used, min_words=words, longest=longest
+                    )
+                    headline_text, article_text = result
+                else:
+                    # Need to generate
+                    with yaspin(text="Generating article", color="cyan", attrs=["dark"]) as spinner:
+                        # Try to generate some articles
+                        need_pairs = provider.store.fetch_headlines_needing_articles(provider.article_batch)
                         if not need_pairs:
-                            raise RuntimeError(
-                                "No headlines available to generate articles for; preload more headlines or reset usage."
-                            )
-                    arts = provider._ensure_article_for(need_pairs, words=words)
-                    if not arts:
-                        raise RuntimeError("No articles were generated")
+                            # Check if we have any headlines at all
+                            stats = provider.store.stats()
+                            if stats["total"] == 0:
+                                # No headlines exist, generate some first
+                                headlines = provider.client.generate_headlines(provider.headline_batch)
+                                provider.store.insert_headlines(headlines)
+                                # Try again
+                                need_pairs = provider.store.fetch_headlines_needing_articles(provider.article_batch)
 
-                    # Select article from generated batch
-                    if longest:
-                        # Find longest article among generated ones
-                        selected = max(arts, key=lambda x: len(x[1].split()))
-                    else:
-                        # Use first generated article
-                        selected = arts[0]
+                            if not need_pairs:
+                                raise RuntimeError(
+                                    "No headlines available to generate articles for; preload more headlines or reset usage."
+                                )
+                        arts = provider._ensure_article_for(need_pairs, words=words)
+                        if not arts:
+                            raise RuntimeError("No articles were generated")
 
-                    headline_text, article_text = selected
-                    if consume:
-                        provider.store.mark_article_used_for(headline_text)
-                    spinner.ok("✓")
-                click.echo("")
+                        # Select article from generated batch
+                        if longest:
+                            # Find longest article among generated ones
+                            selected = max(arts, key=lambda x: len(x[1].split()))
+                        else:
+                            # Use first generated article
+                            selected = arts[0]
+
+                        headline_text, article_text = selected
+                        if consume:
+                            provider.store.mark_article_used_for(headline_text)
+                        spinner.ok("✓")
+                    click.echo("")
 
         # Output headline and article
         click.echo(f"# {headline_text}\n\n{article_text}")
