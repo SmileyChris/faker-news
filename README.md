@@ -2,6 +2,8 @@
 
 Faker provider that turns any OpenAI-compatible LLM into a fake news generator with caching and reuse controls.
 
+![Demo](demo-small.gif)
+
 ## Features
 - Generate headlines, intros, and full articles on demand
 - Keep content in a SQLite cache with per-item usage tracking
